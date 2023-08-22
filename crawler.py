@@ -14,11 +14,6 @@ import unicodedata
 
 import re
 
-
-logger.add("dataset_errors_{time}.log", rotation="500MB", compression="zip", level="ERROR")
-logger.add("dataset_{time}.log", rotation="500MB", compression="zip", level="DEBUG")
-
-
 @dataclass
 class Url:
     """Dataclass to represent a url"""
@@ -37,10 +32,10 @@ class Crawler(object):
     def __init__(self, base_url: str = None, max_depth: int = 1, auto_save: int = 100):
         self.base_url = base_url
         self.visited_urls = set()
-        self.target_urls = set()
+        self.target_urls = list()
         self.max_depth = max_depth
 
-        self.target_urls.add(Url(base_url, []))
+        self.target_urls.append(Url(base_url, []))
 
         if not base_url:
             logger.debug("No base url provided, loading from dataset.json")
@@ -122,6 +117,8 @@ class Crawler(object):
 
         # extract the anchor tags
         anchor_tags = soup.find_all("a")
+        # extract the major
+        bolum = soup.find("div", {"class": "banner_uni_bolum"})
         anchor_urls = [self.fix_url(tag.get("href"), url.url) for tag in anchor_tags if tag.get("href") is not None]
         # extract the paragraph tags
         paragraphs = soup.find_all("p")
@@ -130,14 +127,16 @@ class Crawler(object):
 
         self.visited_urls.add(url)
 
-        return {"anchor_urls": anchor_urls, "paragraphs": paragraphs, "url": url.url, "history": url.history + [url.url]}
+        return {"anchor_urls": anchor_urls, "paragraphs": paragraphs, "url": url.url, "history": url.history + [url.url], "bolum": bolum.text if bolum else None}
 
     def crawl(self) -> None:
-        """Crawls through the target url and extracts the data"""
-        
+        """Crawls through the target url and extracts the data"""          
+        logger.add("dataset_errors_{time}.log", rotation="500MB", compression="zip", level="ERROR")
+        logger.add("dataset_{time}.log", rotation="500MB", compression="zip", level="DEBUG")
+
         c = 0
         
-        for url in list(self.target_urls):
+        for url in self.target_urls:
             if len(url.history) >= self.max_depth:
                 logger.debug("Max depth reached for url: {}", url.url)
                 continue
@@ -155,8 +154,8 @@ class Crawler(object):
 
             for href in data["anchor_urls"]:
                 href = Url(href, url.history + [url.url])
-                if href not in self.visited_urls:
-                    self.target_urls.add(href)
+                if (href not in self.visited_urls) and (href not in self.target_urls):
+                    self.target_urls.append(href)
 
             self.target_urls.remove(url)
 
