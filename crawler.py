@@ -6,6 +6,8 @@ from datetime import datetime
 from dataclasses import dataclass
 import json
 
+from urllib.parse import urlparse
+
 from loguru import logger
 
 import os
@@ -36,6 +38,7 @@ class Crawler(object):
         self.visited_urls = set()
         self.target_urls = list()
         self.max_depth = max_depth
+        self.department = None
 
         self.target_urls.append(Url(base_url, []))
 
@@ -57,10 +60,13 @@ class Crawler(object):
             "autosave": self.auto_save
         }
 
+        self.get_department()
+
     def __str__(self):
         return f"Crawler(base_url={self.base_url}, max_depth={self.max_depth})"
     def __repr__(self) -> str:
         return self.__str__()
+    
 
     def dump_json(self) -> None:
         """Dumps the dataset into a json file"""
@@ -103,10 +109,9 @@ class Crawler(object):
         text = re.sub(r"\n\n+", "\n", text)
 
         return unicodedata.normalize("NFKC", text.strip())
+    
 
-    def get_data(self, url: Url) -> dict[str, list]:
-        """Extracts the html and anchor tags from the given url"""
-
+    def _get_soup(self, url: Url) -> BeautifulSoup:
         try:
             response = httpx.get(url.url, follow_redirects=True)
             response.raise_for_status()
@@ -114,13 +119,33 @@ class Crawler(object):
             logger.error("Error while crawling url: {}", url.url)
             self.visited_urls.add(url)
             return None
-
         soup = BeautifulSoup(response.text, "html.parser")
+        
+        return soup
+
+
+    def get_department(self) -> None:
+        soup = self._get_soup(Url(self.base_url, []))
+        department = soup.find("div", {"class": "banner_uni_bolum"})
+        self.department = department.text if department else None
+
+
+    def get_data(self, url: Url) -> dict[str, list]:
+        """Extracts the html and anchor tags from the given url"""
+
+        soup = self._get_soup(url)
+        if not soup:
+            return None
 
         # extract the anchor tags
         anchor_tags = soup.find_all("a")
-        # extract the major
-        bolum = soup.find("div", {"class": "banner_uni_bolum"})
+
+        if urlparse(self.base_url).netloc in url.url and self.get_department:
+            department = self.department
+        else:
+            department = soup.find("div", {"class": "banner_uni_bolum"})
+            department = department.text if department else None
+
         anchor_urls = [self.fix_url(tag.get("href"), url.url) for tag in anchor_tags if tag.get("href") is not None]
         # extract the paragraph tags
         paragraphs = soup.find_all("p")
@@ -129,7 +154,7 @@ class Crawler(object):
 
         self.visited_urls.add(url)
 
-        return {"anchor_urls": anchor_urls, "paragraphs": paragraphs, "url": url.url, "history": url.history + [url.url], "bolum": bolum.text if bolum else None}
+        return {"anchor_urls": anchor_urls, "paragraphs": paragraphs, "url": url.url, "history": url.history + [url.url], "department": department}
 
     def crawl(self) -> None:
         """Crawls through the target url and extracts the data"""         
