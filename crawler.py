@@ -16,6 +16,7 @@ import unicodedata
 
 import re
 
+
 @dataclass
 class Url:
     """Dataclass to represent a url"""
@@ -25,13 +26,19 @@ class Url:
 
     def __eq__(self, other) -> bool:
         return self.url == other.url
-    
+
     def __hash__(self) -> int:
         return hash(self.url)
 
 
 class Crawler(object):
-    def __init__(self, base_url: str = None, max_depth: int = 1, auto_save: int = 100, save_logs=True):
+    def __init__(
+        self,
+        base_url: str = None,
+        max_depth: int = 1,
+        auto_save: int = 100,
+        save_logs=True,
+    ):
         self.save_logs = save_logs
 
         self.base_url = base_url
@@ -46,7 +53,6 @@ class Crawler(object):
             logger.debug("No base url provided, loading from dataset.json")
             self.load_json()
 
-
         self.auto_save = auto_save
         logger.debug("Initialized crawler with base_url: {}", self.base_url)
         logger.debug("Max depth: {}", self.max_depth)
@@ -57,16 +63,16 @@ class Crawler(object):
             "base_url": base_url,
             "max_depth": max_depth,
             "date": datetime.now().strftime("%Y-%m-%d %H:%m"),
-            "autosave": self.auto_save
+            "autosave": self.auto_save,
         }
 
         self.get_department()
 
     def __str__(self):
         return f"Crawler(base_url={self.base_url}, max_depth={self.max_depth})"
+
     def __repr__(self) -> str:
         return self.__str__()
-    
 
     def dump_json(self) -> None:
         """Dumps the dataset into a json file"""
@@ -78,7 +84,6 @@ class Crawler(object):
         with open("dataset.json", "w", encoding="utf-8") as f:
             json.dump(copy_dict, f, indent=4, ensure_ascii=False)
 
-
     def load_json(self) -> None:
         """Loads the dataset from a json file"""
         with open("dataset.json", "r", encoding="utf-8") as f:
@@ -88,9 +93,10 @@ class Crawler(object):
         self.base_url = data["base_url"]
         self.max_depth = data["max_depth"]
 
-        self.visited_urls = set([Url(sample['url'], sample['history']) for sample in data["data"]])
+        self.visited_urls = set(
+            [Url(sample["url"], sample["history"]) for sample in data["data"]]
+        )
         self.target_urls = set([Url(url, []) for url in data["target_urls"]])
-
 
     def fix_url(self, url: str, base_url: str) -> str:
         """Fixes the url to be absolute"""
@@ -102,33 +108,29 @@ class Crawler(object):
         else:
             return os.path.join(base_url, url)
 
-
     def text_preprocessor(self, text: str) -> str:
         """Preprocesses the text"""
         text = re.sub(r"\s+", " ", text)
         text = re.sub(r"\n\n+", "\n", text)
 
         return unicodedata.normalize("NFKC", text.strip())
-    
 
     def _get_soup(self, url: Url) -> BeautifulSoup:
         try:
             response = httpx.get(url.url, follow_redirects=True)
             response.raise_for_status()
-        except Exception as e:
+        except Exception:
             logger.error("Error while crawling url: {}", url.url)
             self.visited_urls.add(url)
             return None
         soup = BeautifulSoup(response.text, "html.parser")
-        
-        return soup
 
+        return soup
 
     def get_department(self) -> None:
         soup = self._get_soup(Url(self.base_url, []))
         department = soup.find("div", {"class": "banner_uni_bolum"})
         self.department = department.text if department else None
-
 
     def get_data(self, url: Url) -> dict[str, list]:
         """Extracts the html and anchor tags from the given url"""
@@ -146,7 +148,11 @@ class Crawler(object):
             department = soup.find("div", {"class": "banner_uni_bolum"})
             department = department.text if department else None
 
-        anchor_urls = [self.fix_url(tag.get("href"), url.url) for tag in anchor_tags if tag.get("href") is not None]
+        anchor_urls = [
+            self.fix_url(tag.get("href"), url.url)
+            for tag in anchor_tags
+            if tag.get("href") is not None
+        ]
         # extract the paragraph tags
         paragraphs = soup.find_all("p")
         # preprocess the paragraphs
@@ -154,16 +160,29 @@ class Crawler(object):
 
         self.visited_urls.add(url)
 
-        return {"anchor_urls": anchor_urls, "paragraphs": paragraphs, "url": url.url, "history": url.history + [url.url], "department": department}
+        return {
+            "anchor_urls": anchor_urls,
+            "paragraphs": paragraphs,
+            "url": url.url,
+            "history": url.history + [url.url],
+            "department": department,
+        }
 
     def crawl(self) -> None:
-        """Crawls through the target url and extracts the data"""         
-        if self.save_logs: 
-            logger.add("dataset_errors_{time}.log", rotation="500MB", compression="zip", level="ERROR")
-            logger.add("dataset_{time}.log", rotation="500MB", compression="zip", level="DEBUG")
+        """Crawls through the target url and extracts the data"""
+        if self.save_logs:
+            logger.add(
+                "dataset_errors_{time}.log",
+                rotation="500MB",
+                compression="zip",
+                level="ERROR",
+            )
+            logger.add(
+                "dataset_{time}.log", rotation="500MB", compression="zip", level="DEBUG"
+            )
 
         c = 0
-        
+
         for url in self.target_urls:
             if len(url.history) >= self.max_depth:
                 logger.debug("Max depth reached for url: {}", url.url)
@@ -187,11 +206,19 @@ class Crawler(object):
 
             self.target_urls.remove(url)
 
-
             c += 1
             if self.auto_save % c == 0 and self.auto_save:
                 self.dump_json()
-                logger.info("Auto saved dataset: {} | number of target urls: {} | number of processed urls: {}", len(self.dataset["data"]), len(self.target_urls), len(self.visited_urls))
+                logger.info(
+                    "Auto saved dataset: {} | number of target urls: {} | number of processed urls: {}",
+                    len(self.dataset["data"]),
+                    len(self.target_urls),
+                    len(self.visited_urls),
+                )
 
         self.dump_json()
-        logger.info("Finished crawling | number of target urls: {} | number of processed urls: {}", len(self.target_urls), len(self.visited_urls))
+        logger.info(
+            "Finished crawling | number of target urls: {} | number of processed urls: {}",
+            len(self.target_urls),
+            len(self.visited_urls),
+        )
