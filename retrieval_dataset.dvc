@@ -1,0 +1,6 @@
+outs:
+- md5: 650e5d45e996ac3b24224baa9da3ef17.dir
+  size: 281264
+  nfiles: 3
+  hash: md5
+  path: retrieval_dataset
