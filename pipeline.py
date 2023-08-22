@@ -2,19 +2,16 @@ import json
 import os
 
 import pandas as pd
+import torch
+import typer
 from dotenv import load_dotenv
 from langdetect import detect
 from loguru import logger
-
-import torch
+from typer import Argument
+from typing_extensions import Annotated
 
 from datasets import Dataset
 from utils import get_device, get_model, get_tokenizer
-
-import typer
-from typer import Argument
-
-from typing_extensions import Annotated
 
 load_dotenv()
 
@@ -96,20 +93,17 @@ def run(
             help="Default device for the embedding calculation, tries to use GPU by default and fallbacks to cpu"
         ),
     ] = DEFAULT_DEVICE,
-
     batch_size: Annotated[
         int,
         Argument(
             help="Batch size for the batched processing while calculating the embeddings."
         ),
     ] = BATCH_SIZE,
-
     retrieval_dataset_path: Annotated[
         str, Argument(help="Default path for the resulted dataset.")
     ] = RETRIEVAL_DATASET_PATH,
 ):
-    
-    if device=="auto":
+    if device == "auto":
         device = get_device()
     else:
         device = torch.device(device)

@@ -1,16 +1,9 @@
 import os
-import pandas as pd
-
-import json
-from langdetect import detect
-from dotenv import load_dotenv
 
 import torch
-
-from transformers import AutoModel, AutoTokenizer
-
+from dotenv import load_dotenv
 from loguru import logger
-
+from transformers import AutoModel, AutoTokenizer
 
 load_dotenv()
 
