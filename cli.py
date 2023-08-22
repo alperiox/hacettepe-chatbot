@@ -7,8 +7,8 @@ app = typer.Typer()
 
 
 @app.command()
-def crawl(base_url: str, max_depth: int = 1, auto_save: int = 100):
-    crawler = Crawler(base_url, max_depth, auto_save)
+def crawl(base_url: str, max_depth: int = 1, auto_save: int = 100, save_logs: bool=True):
+    crawler = Crawler(base_url, max_depth, auto_save, save_logs)
     crawler.crawl()
 
 @app.command()

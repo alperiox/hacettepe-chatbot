@@ -29,7 +29,9 @@ class Url:
 
 
 class Crawler(object):
-    def __init__(self, base_url: str = None, max_depth: int = 1, auto_save: int = 100):
+    def __init__(self, base_url: str = None, max_depth: int = 1, auto_save: int = 100, save_logs=True):
+        self.save_logs = save_logs
+
         self.base_url = base_url
         self.visited_urls = set()
         self.target_urls = list()
@@ -130,9 +132,10 @@ class Crawler(object):
         return {"anchor_urls": anchor_urls, "paragraphs": paragraphs, "url": url.url, "history": url.history + [url.url], "bolum": bolum.text if bolum else None}
 
     def crawl(self) -> None:
-        """Crawls through the target url and extracts the data"""          
-        logger.add("dataset_errors_{time}.log", rotation="500MB", compression="zip", level="ERROR")
-        logger.add("dataset_{time}.log", rotation="500MB", compression="zip", level="DEBUG")
+        """Crawls through the target url and extracts the data"""         
+        if self.save_logs: 
+            logger.add("dataset_errors_{time}.log", rotation="500MB", compression="zip", level="ERROR")
+            logger.add("dataset_{time}.log", rotation="500MB", compression="zip", level="DEBUG")
 
         c = 0
         
