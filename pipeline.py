@@ -1,17 +1,20 @@
 import json
 import os
-
-import pandas as pd
-import torch
-import typer
 from dotenv import load_dotenv
-from langdetect import detect
+
+import typer
 from loguru import logger
 from typer import Argument
 from typing_extensions import Annotated
 
+
+import pandas as pd
 from datasets import Dataset
+from langdetect import detect
+
+import torch
 from utils import get_device, get_model, get_tokenizer
+
 
 load_dotenv()
 
